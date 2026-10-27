@@ -14,18 +14,21 @@ are vendored, and can be found in `mimalloc-ng-sys/mimalloc`.
 
 ## Features
 
-| Feature             | Effect                                                                |
-| ------------------- | --------------------------------------------------------------------- |
-| `secure`            | Guard pages, randomized allocation, encrypted free lists, ~10% slower |
-| `override`          | Replaces the C `malloc` family for the whole process                  |
-| `debug`             | mimalloc's full assertions and invariant checks                       |
-| `local_dynamic_tls` | Local-dynamic TLS model, for libraries loaded with `dlopen`           |
-| `win_direct_tls`    | Direct TLS slots only on Windows, if the process uses fewer than 64   |
-| `allocator_api`     | Implements `core::alloc::Allocator`, needs Rust 1.100                 |
+| Feature                | Effect                                                                  |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `secure`               | Guard pages, randomized allocation, encrypted free lists, ~10% slower   |
+| `override`             | Replaces the C `malloc` family for the whole process                    |
+| `debug`                | mimalloc's full assertions and invariant checks                         |
+| `local_dynamic_tls`    | Local-dynamic TLS model, for libraries loaded with `dlopen`             |
+| `win_direct_tls`       | Direct TLS slots only on Windows, if the process uses fewer than 64     |
+| `allocator_api`        | Implements `core::alloc::Allocator`, needs Rust 1.100                   |
+| `free_use_pagemap`     | Lifts the ~256 MiB arena object limit, `free` does a page map lookup    |
+| `skip_collect_on_exit` | Skips freeing all memory at process exit                                |
+| `profiler` (default)   | Heap profiler with stack traces, written when `MIMALLOC_PROFILE` is set |
 
 Runtime tuning goes through mimalloc's own options, either the `MIMALLOC_*` environment variables
 or `mi_option_set` from `mimalloc-ng-sys`. For example, `MIMALLOC_ALLOW_THP=0` turns off
-transparent huge pages.
+transparent huge pages, and `MIMALLOC_PROFILE=heap` writes pprof heap profiles to `heap.*.pb`.
 
 ## Updating mimalloc
 

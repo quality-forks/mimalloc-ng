@@ -51,15 +51,19 @@ std_instead_of_core             = "allow"
 tests_outside_test_module       = "allow"
 
 [dependencies]
-mimalloc-ng-sys = { path = "mimalloc-ng-sys", version = "0.2.0" }
+mimalloc-ng-sys = { path = "mimalloc-ng-sys", version = "0.2.0", default-features = false }
 
 [features]
-allocator_api     = []
-debug             = [ "mimalloc-ng-sys/debug" ]
-local_dynamic_tls = [ "mimalloc-ng-sys/local_dynamic_tls" ]
-override          = [ "mimalloc-ng-sys/override" ]
-secure            = [ "mimalloc-ng-sys/secure" ]
-win_direct_tls    = [ "mimalloc-ng-sys/win_direct_tls" ]
+default              = [ "profiler" ]
+allocator_api        = []
+debug                = [ "mimalloc-ng-sys/debug" ]
+free_use_pagemap     = [ "mimalloc-ng-sys/free_use_pagemap" ]
+local_dynamic_tls    = [ "mimalloc-ng-sys/local_dynamic_tls" ]
+override             = [ "mimalloc-ng-sys/override" ]
+profiler             = [ "mimalloc-ng-sys/profiler" ]
+secure               = [ "mimalloc-ng-sys/secure" ]
+skip_collect_on_exit = [ "mimalloc-ng-sys/skip_collect_on_exit" ]
+win_direct_tls       = [ "mimalloc-ng-sys/win_direct_tls" ]
 
 [lints]
 workspace = true

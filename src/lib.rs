@@ -16,6 +16,11 @@
 //! - `local_dynamic_tls` uses the local-dynamic TLS model, for code loaded with
 //!   `dlopen`.
 //! - `win_direct_tls` uses only direct TLS slots on Windows.
+//! - `free_use_pagemap` lifts the ~256 MiB limit on objects in arenas, at the
+//!   cost of a page map lookup in every `free`.
+//! - `skip_collect_on_exit` skips freeing all memory at process exit.
+//! - `profiler`, on by default, builds mimalloc's heap profiler with stack
+//!   traces. It writes pprof files when `MIMALLOC_PROFILE` is set.
 //! - `allocator_api` implements `core::alloc::Allocator`, stable since Rust
 //!   1.100.
 //!
