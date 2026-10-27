@@ -12,6 +12,11 @@ static GLOBAL: MiMalloc = MiMalloc;
 Building needs a C compiler, plus a C++ compiler on MSVC targets. The mimalloc sources
 are vendored, and can be found in `mimalloc-ng-sys/mimalloc`.
 
+Beyond the global allocator, `mimalloc_ng::heap::Heap` exposes first-class heaps
+that any thread can allocate from, `arena::Arena` reserves OS memory up front, and
+`option::{Flag, Size, Number}` read and set runtime options, with sizes in bytes.
+With `allocator_api`, `Vec::new_in(&heap)` allocates from a heap of your own.
+
 ## Features
 
 | Feature                | Effect                                                                  |
@@ -26,9 +31,11 @@ are vendored, and can be found in `mimalloc-ng-sys/mimalloc`.
 | `skip_collect_on_exit` | Skips freeing all memory at process exit                                |
 | `profiler` (default)   | Heap profiler with stack traces, written when `MIMALLOC_PROFILE` is set |
 
-Runtime tuning goes through mimalloc's own options, either the `MIMALLOC_*` environment variables
-or `mi_option_set` from `mimalloc-ng-sys`. For example, `MIMALLOC_ALLOW_THP=0` turns off
-transparent huge pages, and `MIMALLOC_PROFILE=heap` writes pprof heap profiles to `heap.*.pb`.
+Runtime tuning goes through mimalloc's own options, via either the `MIMALLOC_*`
+environment variables or the `option` module.
+
+As an example, `MIMALLOC_ALLOW_THP=0` turns off transparent huge pages, and
+`MIMALLOC_PROFILE=heap` writes pprof heap profiles to `heap.*.pb`.
 
 ## Updating mimalloc
 
