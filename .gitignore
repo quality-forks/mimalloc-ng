@@ -1,0 +1,17 @@
+*
+!.editorconfig
+!.gitattributes
+!.gitignore
+!.rustfmt.toml
+!.tombi.toml
+!Cargo.lock
+!Cargo.toml
+!LICENSE
+!README.md
+
+!.github/
+!.github/**
+!src/
+!src/**
+!mimalloc-ng-sys/
+!mimalloc-ng-sys/**

@@ -1,0 +1,65 @@
+[package]
+name                   = "mimalloc-ng"
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+description            = "Rust global allocator backed by mimalloc"
+readme                 = "README.md"
+repository.workspace   = true
+license.workspace      = true
+keywords               = [ "allocator", "malloc", "mimalloc", "performance" ]
+categories             = [ "api-bindings", "memory-management", "no-std" ]
+include                = [ "LICENSE", "README.md", "src" ]
+
+[workspace]
+resolver = "3"
+members  = [ "mimalloc-ng-sys", "mimalloc-ng-sys/abi" ]
+
+[workspace.package]
+version      = "0.2.0"
+edition      = "2024"
+rust-version = "1.85"
+repository   = "https://github.com/quality-forks/mimalloc-ng"
+license      = "MIT"
+
+[workspace.lints.clippy]
+cargo    = { level = "warn", priority = -1 }
+nursery  = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+
+blanket_clippy_restriction_lints = "allow"
+restriction                      = { level = "warn", priority = -1 }
+
+arbitrary_source_item_ordering  = "allow"
+arithmetic_side_effects         = "allow"
+else_if_without_else            = "allow"
+error_impl_error                = "allow"
+exhaustive_enums                = "allow"
+exhaustive_structs              = "allow"
+implicit_return                 = "allow"
+indexing_slicing                = "allow"
+integer_division                = "allow"
+integer_division_remainder_used = "allow"
+missing_trait_methods           = "allow"
+module_name_repetitions         = "allow"
+question_mark_used              = "allow"
+ref_patterns                    = "allow"
+separated_literal_suffix        = "allow"
+single_call_fn                  = "allow"
+std_instead_of_alloc            = "allow"
+std_instead_of_core             = "allow"
+tests_outside_test_module       = "allow"
+
+[dependencies]
+mimalloc-ng-sys = { path = "mimalloc-ng-sys", version = "0.2.0" }
+
+[features]
+allocator_api     = []
+debug             = [ "mimalloc-ng-sys/debug" ]
+local_dynamic_tls = [ "mimalloc-ng-sys/local_dynamic_tls" ]
+override          = [ "mimalloc-ng-sys/override" ]
+secure            = [ "mimalloc-ng-sys/secure" ]
+win_direct_tls    = [ "mimalloc-ng-sys/win_direct_tls" ]
+
+[lints]
+workspace = true
