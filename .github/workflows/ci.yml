@@ -84,11 +84,18 @@ jobs:
       flake-check: false
       rust-toolchain: stable
       rust-targets: ${{ matrix.target }}
-      setup-command: >-
+      setup-command: |
         echo 'Acquire::Retries "3"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";' |
-        sudo tee /etc/apt/apt.conf.d/99ci >/dev/null &&
-        sudo apt-get update &&
-        sudo apt-get install -y ${{ matrix.packages }} ${{ matrix.gcc && format('gcc-{0} qemu-user', matrix.gcc) || '' }}
+          sudo tee /etc/apt/apt.conf.d/99ci >/dev/null
+        sudo apt-get update
+        # Azure's mirror sometimes trickles a download forever, which no apt timeout catches.
+        for attempt in 1 2 3; do
+          sudo timeout 300 apt-get install -y ${{ matrix.packages }} ${{ matrix.gcc && format('gcc-{0} qemu-user', matrix.gcc) || '' }} && break
+          [[ $attempt == 3 ]] && exit 1
+          sudo dpkg --configure -a || true
+          echo http://archive.ubuntu.com/ubuntu/ | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          sudo apt-get update
+        done
       test: true
       test-command: |
         if [[ -n "${{ matrix.gcc }}" ]]; then
