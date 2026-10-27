@@ -24,11 +24,15 @@ libc = { version = "0.2.186", default-features = false }
 cc = "1.2.60"
 
 [features]
-debug             = []
-local_dynamic_tls = []
-override          = []
-secure            = []
-win_direct_tls    = []
+default              = [ "profiler" ]
+debug                = []
+free_use_pagemap     = []
+local_dynamic_tls    = []
+override             = []
+profiler             = []
+secure               = []
+skip_collect_on_exit = []
+win_direct_tls       = []
 
 [lints]
 workspace = true

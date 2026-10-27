@@ -40,6 +40,8 @@ fn main() -> Result<(), Box<dyn Error>> {
    let target_env = cfg("env");
    let vendor = cfg("vendor");
    let arch = cfg("arch");
+   let target_features = cfg("feature");
+   let has_feature = |name: &str| target_features.split(',').any(|feature| feature == name);
    let profile_debug = env::var("DEBUG").is_ok_and(|value| value == "true");
 
    let mut build = cc::Build::new();
@@ -102,6 +104,30 @@ fn main() -> Result<(), Box<dyn Error>> {
       build.flag_if_supported(format!("-ftls-model={model}"));
    }
 
+   if feature("free_use_pagemap") {
+      build.define("MI_FREE_USE_PAGEMAP", "1");
+   }
+
+   if feature("skip_collect_on_exit") {
+      build.define("MI_SKIP_COLLECT_ON_EXIT", None);
+   }
+
+   let execinfo = vendor == "apple"
+      || (os == "linux" && target_env == "gnu")
+      || matches!(os.as_str(), "freebsd" | "dragonfly");
+
+   configure_profiler(&mut build, feature("profiler"), family == "unix", execinfo);
+
+   // Rust only enables LSE atomics when the whole target may assume ARMv8.1.
+   // Apple's default CPU already implies it.
+   if arch == "aarch64" && vendor != "apple" && has_feature("lse") {
+      if build.get_compiler().is_like_msvc() {
+         build.flag("/arch:armv8.1");
+      } else {
+         build.flag("-march=armv8.1-a");
+      }
+   }
+
    if feature("debug") {
       build.define("MI_DEBUG", "3").define("MI_SHOW_ERRORS", "1");
    } else {
@@ -116,7 +142,42 @@ fn main() -> Result<(), Box<dyn Error>> {
 
    build.compile("mimalloc");
 
-   if os == "linux" && arch == "arm" {
+   link_system_libraries(
+      &os,
+      &arch,
+      has_feature("v7"),
+      feature("profiler") && execinfo,
+   );
+   Ok(())
+}
+
+/// Builds the heap profiler with the platform support upstream `CMake` would
+/// detect, or compiles it out.
+fn configure_profiler(build: &mut cc::Build, enabled: bool, unix: bool, execinfo: bool) {
+   if !enabled {
+      build.define("MI_PROFILE", "0");
+      return;
+   }
+
+   // Without these headers the profiler records no stacks and cannot write
+   // profile files.
+   if unix {
+      build.define("MI_HAS_UNISTDH", "1");
+   }
+
+   if execinfo {
+      build.define("MI_HAS_EXECINFOH", "1");
+   }
+}
+
+/// Links the system libraries that upstream `CMake` adds for `os`.
+fn link_system_libraries(os: &str, arch: &str, armv7: bool, execinfo: bool) {
+   if execinfo && matches!(os, "freebsd" | "dragonfly") {
+      println!("cargo::rustc-link-lib=execinfo");
+   }
+
+   // ARMv6 has no 64-bit atomic instructions, ARMv7 does.
+   if os == "linux" && arch == "arm" && !armv7 {
       let atomic = env::var("DEP_ATOMIC").unwrap_or_else(|_| "atomic".to_owned());
       println!("cargo::rustc-link-lib={atomic}");
    }
@@ -126,8 +187,6 @@ fn main() -> Result<(), Box<dyn Error>> {
          println!("cargo::rustc-link-lib={lib}");
       }
    }
-
-   Ok(())
 }
 
 /// `path` with `/` separators, for a C `#include` that MSVC and clang-cl both
