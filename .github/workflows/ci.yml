@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
   merge_group:
   workflow_dispatch:
@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-26.04-arm, macos-latest]
+        os: [ubuntu-latest, ubuntu-26.04-arm, macos-latest, macos-15-intel]
     uses: manic-systems/workflows/.github/workflows/rust-checks.yml@ec457510b197b2eeb8b2ea2d182f31e3ed7157bd # v2.3.3
     with:
       os: ${{ matrix.os }}
@@ -31,12 +31,22 @@ jobs:
       test-command: >-
         cargo test --locked --workspace &&
         cargo test --locked --workspace --features mimalloc-ng-sys/secure &&
-        cargo test --locked --features debug &&
+        cargo test --locked --workspace --no-default-features &&
+        cargo test --locked --features debug,free_use_pagemap,local_dynamic_tls,skip_collect_on_exit &&
         cargo test --locked -p mimalloc-ng-sys --features override
 
   windows:
-    name: Checks (windows-latest)
-    runs-on: windows-latest
+    name: Checks (${{ matrix.target }}${{ matrix.rustflags && ', static CRT' || '' }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-pc-windows-msvc , os: windows-latest }
+          - { target: x86_64-pc-windows-msvc , os: windows-latest, rustflags: -C target-feature=+crt-static }
+          - { target: i686-pc-windows-msvc   , os: windows-latest }
+          - { target: aarch64-pc-windows-msvc, os: windows-11-arm }
+          - { target: x86_64-pc-windows-gnu  , os: windows-latest }
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,23 +56,72 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
           toolchain: stable
-          rustflags: ""
+          target: ${{ matrix.target }}
+          rustflags: ${{ matrix.rustflags }}
 
-      - run: cargo test --locked --workspace
-      - run: cargo test --locked --workspace --features mimalloc-ng-sys/secure
+      - run: cargo test --locked --workspace --target ${{ matrix.target }}
+      - run: cargo test --locked --workspace --target ${{ matrix.target }} --features mimalloc-ng-sys/secure
+      - run: cargo test --locked --workspace --target ${{ matrix.target }} --features win_direct_tls
 
-  musl:
-    name: Checks (musl)
+  cross:
+    name: Checks (${{ matrix.target }}${{ matrix.rustflags && ', LSE' || '' }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-musl    , os: ubuntu-latest   , packages: musl-tools }
+          - { target: aarch64-unknown-linux-musl   , os: ubuntu-26.04-arm, packages: musl-tools }
+          - { target: aarch64-unknown-linux-gnu    , os: ubuntu-26.04-arm, rustflags: -C target-feature=+lse }
+          - { target: i686-unknown-linux-gnu       , os: ubuntu-latest   , packages: gcc-multilib }
+          - { target: armv7-unknown-linux-gnueabihf, os: ubuntu-latest   , gcc: arm-linux-gnueabihf  , qemu: arm }
+          - { target: arm-unknown-linux-gnueabihf  , os: ubuntu-latest   , gcc: arm-linux-gnueabihf  , qemu: arm }
+          - { target: powerpc64le-unknown-linux-gnu, os: ubuntu-latest   , gcc: powerpc64le-linux-gnu, qemu: ppc64le }
+          - { target: powerpc64-unknown-linux-gnu  , os: ubuntu-latest   , gcc: powerpc64-linux-gnu  , qemu: ppc64 }
+          - { target: riscv64gc-unknown-linux-gnu  , os: ubuntu-latest   , gcc: riscv64-linux-gnu    , qemu: riscv64 }
     uses: manic-systems/workflows/.github/workflows/rust-checks.yml@ec457510b197b2eeb8b2ea2d182f31e3ed7157bd # v2.3.3
     with:
-      os: ubuntu-latest
+      os: ${{ matrix.os }}
       install-nix: false
       flake-check: false
       rust-toolchain: stable
-      rust-targets: x86_64-unknown-linux-musl
-      setup-command: sudo apt-get install -y musl-tools
+      rust-targets: ${{ matrix.target }}
+      setup-command: >-
+        echo 'Acquire::Retries "3"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";' |
+        sudo tee /etc/apt/apt.conf.d/99ci >/dev/null &&
+        sudo apt-get update &&
+        sudo apt-get install -y ${{ matrix.packages }} ${{ matrix.gcc && format('gcc-{0} qemu-user', matrix.gcc) || '' }}
       test: true
-      test-command: cargo test --locked --target x86_64-unknown-linux-musl
+      test-command: |
+        if [[ -n "${{ matrix.gcc }}" ]]; then
+          var=$(tr a-z- A-Z_ <<< "${{ matrix.target }}")
+          export TARGET_CC=${{ matrix.gcc }}-gcc
+          export "CARGO_TARGET_${var}_LINKER=${{ matrix.gcc }}-gcc"
+          export "CARGO_TARGET_${var}_RUNNER=qemu-${{ matrix.qemu }} -L /usr/${{ matrix.gcc }}"
+        fi
+        RUSTFLAGS="${{ matrix.rustflags }}" cargo test --locked --workspace --target ${{ matrix.target }}
+
+  build:
+    name: Build (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: aarch64-linux-android, os: ubuntu-latest }
+          - { target: aarch64-apple-ios    , os: macos-latest }
+    uses: manic-systems/workflows/.github/workflows/rust-checks.yml@ec457510b197b2eeb8b2ea2d182f31e3ed7157bd # v2.3.3
+    with:
+      os: ${{ matrix.os }}
+      install-nix: false
+      flake-check: false
+      rust-toolchain: stable
+      rust-targets: ${{ matrix.target }}
+      test: true
+      test-command: |
+        if [[ "${{ matrix.target }}" == *-android ]]; then
+          ndk=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
+          export TARGET_CC=$ndk/aarch64-linux-android24-clang TARGET_AR=$ndk/llvm-ar
+        fi
+        cargo build --locked -p mimalloc-ng --target ${{ matrix.target }}
 
   nightly:
     name: Nightly
@@ -104,7 +163,8 @@ jobs:
     needs:
       - checks
       - windows
-      - musl
+      - cross
+      - build
       - nightly
       - msrv
       - actions
