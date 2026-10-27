@@ -16,7 +16,7 @@ resolver = "3"
 members  = [ "mimalloc-ng-sys", "mimalloc-ng-sys/abi" ]
 
 [workspace.package]
-version      = "0.2.0"
+version      = "0.2.1"
 edition      = "2024"
 rust-version = "1.85"
 repository   = "https://github.com/quality-forks/mimalloc-ng"
@@ -51,7 +51,7 @@ std_instead_of_core             = "allow"
 tests_outside_test_module       = "allow"
 
 [dependencies]
-mimalloc-ng-sys = { path = "mimalloc-ng-sys", version = "0.2.0", default-features = false }
+mimalloc-ng-sys = { path = "mimalloc-ng-sys", version = "0.2.1", default-features = false }
 
 [features]
 default              = [ "profiler" ]
