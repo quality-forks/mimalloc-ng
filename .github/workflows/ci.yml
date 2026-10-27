@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Checks (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-26.04-arm, macos-latest]
+    uses: manic-systems/workflows/.github/workflows/rust-checks.yml@ec457510b197b2eeb8b2ea2d182f31e3ed7157bd # v2.3.3
+    with:
+      os: ${{ matrix.os }}
+      install-nix: false
+      flake-check: false
+      rust-toolchain: stable
+      test: true
+      test-command: >-
+        cargo test --locked --workspace &&
+        cargo test --locked --workspace --features mimalloc-ng-sys/secure &&
+        cargo test --locked --features debug &&
+        cargo test --locked -p mimalloc-ng-sys --features override
+
+  windows:
+    name: Checks (windows-latest)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        with:
+          toolchain: stable
+          rustflags: ""
+
+      - run: cargo test --locked --workspace
+      - run: cargo test --locked --workspace --features mimalloc-ng-sys/secure
+
+  musl:
+    name: Checks (musl)
+    uses: manic-systems/workflows/.github/workflows/rust-checks.yml@ec457510b197b2eeb8b2ea2d182f31e3ed7157bd # v2.3.3
+    with:
+      os: ubuntu-latest
+      install-nix: false
+      flake-check: false
+      rust-toolchain: stable
+      rust-targets: x86_64-unknown-linux-musl
+      setup-command: sudo apt-get install -y musl-tools
+      test: true
+      test-command: cargo test --locked --target x86_64-unknown-linux-musl
+
+  nightly:
+    name: Nightly
+    uses: manic-systems/workflows/.github/workflows/rust-checks.yml@ec457510b197b2eeb8b2ea2d182f31e3ed7157bd # v2.3.3
+    with:
+      os: ubuntu-latest
+      install-nix: false
+      flake-check: false
+      rust-toolchain: nightly
+      fmt: true
+      clippy: true
+      clippy-command: >-
+        cargo clippy --locked --workspace --all-targets --features allocator_api,mimalloc-ng-sys/override
+        -- -D warnings
+      test: true
+      test-command: >-
+        cargo test --locked --features allocator_api &&
+        RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps
+        -p mimalloc-ng -p mimalloc-ng-sys --features allocator_api
+
+  msrv:
+    name: MSRV
+    uses: manic-systems/workflows/.github/workflows/rust-checks.yml@ec457510b197b2eeb8b2ea2d182f31e3ed7157bd # v2.3.3
+    with:
+      os: ubuntu-latest
+      install-nix: false
+      flake-check: false
+      rust-toolchain: "1.85"
+      test: true
+      test-command: cargo test --locked -p mimalloc-ng -p mimalloc-ng-sys
+
+  actions:
+    name: Actions Lint
+    uses: manic-systems/workflows/.github/workflows/actions-lint.yml@ec457510b197b2eeb8b2ea2d182f31e3ed7157bd # v2.3.3
+
+  required:
+    name: Required Checks
+    if: always()
+    needs:
+      - checks
+      - windows
+      - musl
+      - nightly
+      - msrv
+      - actions
+    runs-on: ubuntu-latest
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1

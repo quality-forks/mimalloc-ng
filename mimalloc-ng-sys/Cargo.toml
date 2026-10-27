@@ -1,0 +1,34 @@
+[package]
+name                   = "mimalloc-ng-sys"
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+description            = "Raw bindings to mimalloc, built from vendored source"
+repository.workspace   = true
+license.workspace      = true
+keywords               = [ "allocator", "ffi", "malloc", "mimalloc" ]
+categories             = [ "external-ffi-bindings", "memory-management", "no-std" ]
+links                  = "mimalloc"
+include                = [
+  "build.rs",
+  "mimalloc/LICENSE",
+  "mimalloc/include",
+  "mimalloc/src",
+  "src"
+]
+
+[dev-dependencies]
+libc = { version = "0.2.186", default-features = false }
+
+[build-dependencies]
+cc = "1.2.60"
+
+[features]
+debug             = []
+local_dynamic_tls = []
+override          = []
+secure            = []
+win_direct_tls    = []
+
+[lints]
+workspace = true

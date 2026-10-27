@@ -1,0 +1,20 @@
+[package]
+name              = "mimalloc-ng-sys-abi"
+version.workspace = true
+edition.workspace = true
+rust-version      = "1.88"
+description       = "Checks mimalloc-ng-sys against the mimalloc headers"
+license.workspace = true
+publish           = false
+
+[[test]]
+harness = false
+name    = "abi"
+
+[dev-dependencies]
+mimalloc-ng-sys = { path = ".." }
+
+[build-dependencies]
+ctest = "0.5.1"
+
+[lints]
